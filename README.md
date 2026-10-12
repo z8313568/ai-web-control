@@ -137,3 +137,7 @@ python3 tests/test_host.py
   不可信的 AI 对话里请用侧边栏总开关关闭。
 - **DeepSeek DOM 可能变**。`ds-markdown` 类名若改版，监听失效，需维护适配器。
 - 面向个人电脑/开发机，**不要装在生产服务器上**。
+
+## 许可证
+
+[MIT](LICENSE) © 2026 twoants
