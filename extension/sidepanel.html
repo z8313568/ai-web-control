@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>AI Web Control</title>
+    <style>
+      :root {
+        --bg: #1e1e2e;
+        --panel: #2a2a3c;
+        --text: #e4e4ef;
+        --muted: #8888a0;
+        --accent: #7aa2f7;
+        --ok: #9ece6a;
+        --err: #f7768e;
+        --warn: #e0af68;
+        --border: #3b3b52;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font: 13px/1.5 -apple-system, "Segoe UI", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      header {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      header h1 { margin: 0; font-size: 14px; font-weight: 600; }
+      .status-dot {
+        display: inline-block;
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: var(--muted);
+        margin-right: 6px;
+        vertical-align: middle;
+      }
+      .status-dot.on { background: var(--ok); }
+      .status-dot.off { background: var(--err); }
+
+      .toolbar {
+        padding: 10px 14px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        border-bottom: 1px solid var(--border);
+      }
+      .toggle {
+        cursor: pointer;
+        padding: 4px 10px;
+        border-radius: 4px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-size: 12px;
+      }
+      .toggle.on { background: var(--ok); color: #111; border-color: var(--ok); }
+      .toggle.off { background: var(--err); color: #111; }
+
+      .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); }
+      .tab {
+        padding: 8px 12px;
+        cursor: pointer;
+        color: var(--muted);
+        border-bottom: 2px solid transparent;
+        font-size: 12px;
+      }
+      .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+      .pane { padding: 12px 14px; flex: 1; overflow-y: auto; display: none; }
+      .pane.active { display: block; }
+
+      label.field { display: block; margin-bottom: 10px; }
+      label.field > span { display: block; color: var(--muted); font-size: 11px; margin-bottom: 3px; }
+      input[type=text], textarea, select {
+        width: 100%;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 6px 8px;
+        border-radius: 4px;
+        font: inherit;
+      }
+      textarea { min-height: 70px; resize: vertical; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+      .row { display: flex; gap: 8px; }
+      .row > input[type=text] { flex: 1; }
+
+      button {
+        background: var(--accent);
+        color: #111;
+        border: none;
+        padding: 7px 14px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 12px;
+      }
+      button:disabled { opacity: 0.5; cursor: not-allowed; }
+      button.secondary { background: var(--panel); color: var(--text); border: 1px solid var(--border); }
+
+      .result {
+        margin-top: 10px;
+        padding: 8px;
+        background: var(--panel);
+        border-radius: 4px;
+        font-family: ui-monospace, Menlo, monospace;
+        font-size: 11.5px;
+        white-space: pre-wrap;
+        word-break: break-all;
+        max-height: 50vh;
+        overflow-y: auto;
+      }
+      .result.ok { border-left: 3px solid var(--ok); }
+      .result.err { border-left: 3px solid var(--err); }
+
+      .log-line { padding: 3px 0; border-bottom: 1px solid var(--border); font-size: 11.5px; }
+      .log-line .t { color: var(--muted); margin-right: 6px; }
+      .log-line.danger { color: var(--err); }
+      .log-empty { color: var(--muted); font-style: italic; padding: 8px 0; }
+
+      .hint { color: var(--muted); font-size: 11px; margin-top: 6px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>AI Web Control</h1>
+      <div><span id="dot" class="status-dot"></span><span id="statusText">检查中…</span></div>
+    </header>
+
+    <div class="toolbar">
+      <div id="enableToggle" class="toggle on">已启用 · 点击关闭</div>
+      <div id="injectToggle" class="toggle on" title="在 DeepSeek 新对话自动填入系统提示词">自动注入提示词</div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-pane="exec">手动执行</div>
+      <div class="tab" data-pane="shell">Shell</div>
+      <div class="tab" data-pane="file">文件</div>
+      <div class="tab" data-pane="wizard">向导</div>
+      <div class="tab" data-pane="sites">网站配置</div>
+      <div class="tab" data-pane="tasks">任务</div>
+      <div class="tab" data-pane="installs">待安装</div>
+      <div class="tab" data-pane="log">日志</div>
+    </div>
+
+    <!-- 手动执行：粘贴任意协议 JSON -->
+    <div id="pane-exec" class="pane active">
+      <label class="field">
+        <span>协议 JSON（粘贴一条 webctl 动作）</span>
+        <textarea id="manualJson" placeholder='{"action":"shell","cmd":"echo hello"}'></textarea>
+      </label>
+      <button id="btnExec">执行</button>
+      <div id="manualResult"></div>
+    </div>
+
+    <!-- Shell -->
+    <div id="pane-shell" class="pane">
+      <!-- 工作空间 -->
+      <div style="background:var(--panel); border-radius:4px; padding:8px; margin-bottom:10px; font-size:11px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="color:var(--muted)">📁 工作空间</span>
+          <button id="btnWsEdit" class="secondary" style="font-size:10px; padding:2px 8px;">修改</button>
+        </div>
+        <div id="wsPath" style="font-family:ui-monospace,Menlo,monospace; color:#9ece6a; margin-top:2px; word-break:break-all;">加载中…</div>
+        <div style="margin-top:4px;">
+          <button id="btnWsCreate" class="secondary" style="font-size:10px; padding:2px 8px;">创建目录</button>
+          <button id="btnWsList" class="secondary" style="font-size:10px; padding:2px 8px;">查看内容</button>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>命令（macOS / Windows 都可）</span>
+        <input type="text" id="shellCmd" placeholder="例：ls -la ~/Desktop" />
+      </label>
+      <div class="row">
+        <button id="btnShell">执行 Shell</button>
+        <button id="btnShellPing" class="secondary">Ping Host</button>
+        <button id="btnDiag" class="secondary">🔍 诊断</button>
+      </div>
+      <div id="shellResult"></div>
+    </div>
+
+    <!-- 文件 -->
+    <div id="pane-file" class="pane">
+      <label class="field">
+        <span>路径（~ 会展开到家目录）</span>
+        <input type="text" id="filePath" placeholder="例：~/Documents/note.txt" />
+      </label>
+      <div class="row">
+        <button id="btnRead">读取</button>
+        <button id="btnList" class="secondary">列目录</button>
+      </div>
+      <label class="field" style="margin-top:12px">
+        <span>写入内容（追加到上面路径）</span>
+        <textarea id="fileWrite" placeholder="要写入的文本…"></textarea>
+      </label>
+      <button id="btnWrite" class="secondary">写入 / 追加</button>
+      <div id="fileResult"></div>
+    </div>
+
+    <!-- 配置向导：分步引导用户完成新网站适配 -->
+    <div id="pane-wizard" class="pane">
+      <div style="font-weight:600;margin-bottom:4px;">🧭 新网站配置向导</div>
+      <div class="hint" id="wizHint">分步引导你完成适配。请打开目标网站，然后开始。</div>
+
+      <div style="margin:10px 0;display:flex;gap:4px;" id="wizSteps">
+        <span style="padding:2px 8px;border-radius:10px;font-size:11px;background:#7aa2f7;color:#111;">1.输入框</span>
+        <span style="color:var(--muted)">→</span>
+        <span style="padding:2px 8px;border-radius:10px;font-size:11px;background:var(--panel);color:var(--muted);">2.输出区</span>
+        <span style="color:var(--muted)">→</span>
+        <span style="padding:2px 8px;border-radius:10px;font-size:11px;background:var(--panel);color:var(--muted);">3.代码块</span>
+        <span style="color:var(--muted)">→</span>
+        <span style="padding:2px 8px;border-radius:10px;font-size:11px;background:var(--panel);color:var(--muted);">4.测试</span>
+        <span style="color:var(--muted)">→</span>
+        <span style="padding:2px 8px;border-radius:10px;font-size:11px;background:var(--panel);color:var(--muted);">5.完成</span>
+      </div>
+
+      <div id="wizContent" style="margin-top:8px;">
+        <button id="btnWizStart" style="width:100%;">开始配置</button>
+      </div>
+    </div>
+
+    <!-- 网站配置：拾取元素 / 管理各网站选择器 -->
+    <div id="pane-sites" class="pane">
+      <div class="hint">为任意大模型网页配置输入框/发送按钮/输出区域的选择器。内网网站也能用。</div>
+
+      <div class="row" style="margin-top:8px">
+        <button id="btnPick" title="在当前激活的标签页启动拾取模式，鼠标悬停高亮后点按钮归类">🟦 在当前页面拾取</button>
+        <button id="btnReloadAdapter" class="secondary">重载当前页适配器</button>
+      </div>
+      <div class="hint">点「拾取」后会请求该网站的访问权限（Chrome 会弹确认框）。</div>
+
+      <div style="margin-top:12px; font-weight:600;">已配置网站</div>
+      <div id="siteList" style="margin-top:6px"><div class="log-empty">加载中…</div></div>
+
+      <div style="margin-top:14px; font-weight:600;">测试选择器</div>
+      <label class="field" style="margin-top:4px">
+        <span>在当前激活标签页测试此 CSS 选择器（看匹配几个元素）</span>
+        <div class="row">
+          <input type="text" id="testSel" placeholder='例：textarea[placeholder*="发送"]' />
+          <button id="btnTestSel" class="secondary">测试</button>
+        </div>
+      </label>
+      <div id="testSelResult"></div>
+
+      <div style="margin-top:14px; font-weight:600;">手动添加/编辑</div>
+      <div class="hint">直接填 JSON 添加一个网站配置（覆盖同名域名）：</div>
+      <label class="field" style="margin-top:4px">
+        <textarea id="manualAdapter" placeholder='{"host":"example.com","label":"示例","input":"#in","output":".out","send":"#go","injectPrompt":true}'></textarea>
+      </label>
+      <button id="btnSaveAdapter" class="secondary">保存配置</button>
+      <div id="adapterResult"></div>
+    </div>
+
+    <!-- 任务面板：读取 .memory/tasks.md 并可视化 -->
+    <div id="pane-tasks" class="pane">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span style="font-weight:600;">📋 任务面板</span>
+        <button id="btnRefreshTasks" class="secondary" style="font-size:10px; padding:3px 8px;">刷新</button>
+      </div>
+      <div class="hint">读取 ~/ai-workspace/.memory/tasks.md</div>
+      <div id="taskPanel" style="margin-top:8px;">
+        <div class="log-empty">点击刷新加载任务…</div>
+      </div>
+    </div>
+
+    <!-- 待安装面板 -->
+    <div id="pane-installs" class="pane">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span style="font-weight:600;">📦 待安装软件</span>
+        <button id="btnRefreshInstalls" class="secondary" style="font-size:10px; padding:3px 8px;">刷新</button>
+      </div>
+      <div class="hint">内网不能自动安装。在此查看需要安装的软件，手动操作后点"已安装"清除。</div>
+      <div id="installList" style="margin-top:8px;">
+        <div class="log-empty">暂无待安装</div>
+      </div>
+    </div>
+
+    <!-- 日志 -->
+    <div id="pane-log" class="pane">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="hint">Agent 全链路日志（检测→执行→结果→回传）</div>
+        <button id="btnClearLog" class="secondary" style="font-size:10px; padding:2px 8px;">清空</button>
+      </div>
+      <div id="logList" style="margin-top:8px"><div class="log-empty">暂无</div></div>
+    </div>
+
+    <script src="sidepanel.js"></script>
+  </body>
+</html>

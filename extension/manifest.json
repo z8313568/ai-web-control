@@ -1,0 +1,61 @@
+{
+  "manifest_version": 3,
+  "name": "AI Web Control",
+  "version": "0.1.0",
+  "description": "让 AI 网页（DeepSeek 等）通过本扩展控制本地电脑：执行命令、读写文件、浏览器自动化。内网零外联。",
+  "minimum_chrome_version": "116",
+
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA47J263Emj5AbTHdviBhuDtt95xvKHMw3/30Uikl1/urzKX/g779/h4Yn26bT8I8f4kTB6/ndmZaD7ThiPkV1Q6IaOGbbaAarBGGRM786AZhFjgMbTTunj9JbXaPAPdn16BSzqnAckMP8oXhNTJEQ0H8WZzUkC2zP/5ZI1IkdW+b34cxxASCcRQJdHnvYGKK4wqmzBPRtBY9a4ACKFOkRKznndvNfqZ0hBvp5odsS0071kmoev9jXR8umTCPR6beylcdjYfrOCWVRI1H7LeergNJ6yXTcl7H4ATe1ZcXNB9kJ9iuu4+OwqDm5TDOW0/lSRk3f4DjQYWwyGK4xnYdv9QIDAQAB",
+
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+
+  "action": {
+    "default_title": "AI Web Control"
+  },
+
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+
+  "permissions": [
+    "nativeMessaging",
+    "sidePanel",
+    "storage",
+    "tabs",
+    "scripting",
+    "notifications"
+  ],
+
+  "host_permissions": [
+    "*://*.deepseek.com/*",
+    "*://chat.deepseek.com/*",
+    "*://www.deepseek.com/*",
+    "*://platform.deepseek.com/*"
+  ],
+
+  "optional_host_permissions": ["<all_urls>"],
+
+  "content_scripts": [
+    {
+      "matches": ["*://*.deepseek.com/*"],
+      "js": [
+        "content/config.js",
+        "content/logger.js",
+        "content/protocol.js",
+        "content/ui.js",
+        "content/adapter.js",
+        "content/floating_taskbar.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

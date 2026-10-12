@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+._*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 扩展打包产物与签名私钥（不入库）
+*.pem
+*.crx
+*.key
+updates.xml
+
+# 日志与审计
+*.log
+audit-*.jsonl
+
+# 编辑器
+.idea/
+.vscode/

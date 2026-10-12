@@ -1,0 +1,9 @@
+{
+  "name": "com.zcode.aiwebcontrol",
+  "description": "AI Web Control native host — bridges Chrome extension to local shell/files.",
+  "type": "stdio",
+  "path": "__HOST_LAUNCHER_PATH__",
+  "allowed_origins": [
+    "chrome-extension://__EXTENSION_ID__/"
+  ]
+}
